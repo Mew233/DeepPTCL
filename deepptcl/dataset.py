@@ -1,71 +1,71 @@
 import torch
 from torch.utils.data import Dataset
 
-DRUG1_ID_COLUMN_NAME = "Drug1_ID"
-DRUG2_ID_COLUMN_NAME= "Drug2_ID"
-CELL_LINE_COLUMN_NAME = "Cell_Line_ID"
-
-class DrugCombDataset(Dataset):
-
-    '''Dataset class that returns all model inputs and a target'''
-
-    def __init__(self, drugcomb, cell_lines, mol_mapping, transform=None):
-        self.drugcomb = drugcomb
-        self.mol_mapping = mol_mapping
-        self.cell_lines = cell_lines
-        self.targets = torch.from_numpy(drugcomb['target'].values)
-        self.transform = transform
-
-    def __len__(self):
-        return len(self.drugcomb)
-
-    def __getitem__(self, idx):
-        sample = self.drugcomb.iloc[idx]
-
-        drug1 = sample[DRUG1_ID_COLUMN_NAME]
-        drug2 = sample[DRUG2_ID_COLUMN_NAME]
-        drug1_tokens = self.mol_mapping[drug1]
-        drug2_tokens = self.mol_mapping[drug2]
-
-        if self.transform:
-            drug1_tokens = self.transform(drug1_tokens)
-            drug2_tokens = self.transform(drug2_tokens)
-
-        cell_line_name = sample[CELL_LINE_COLUMN_NAME]
-        cell_line_embeddings = self.cell_lines.loc[cell_line_name].values.flatten()
-        cell_line_embeddings = torch.tensor(cell_line_embeddings)
-
-        target = self.targets[idx].unsqueeze(-1).float()
-        
-        return (drug1_tokens, drug2_tokens, cell_line_embeddings, target)
+# Column names for drug and cell line identifiers
+DRUG_A = "Drug1_ID"
+DRUG_B = "Drug2_ID"
+CELL_LINE = "Cell_Line_ID"
 
 
-class DrugCombDataset_GDSC(Dataset):
-    '''Dataset class that returns all model inputs and a target'''
+class ComboDataset(Dataset):
+    """
+    Custom Dataset for handling drug combination data with cell line embeddings.
+    Prepares drug and cell line features along with the corresponding target values.
+    """
 
-    def __init__(self, drugcomb, cell_lines, mol_mapping, transform=None):
-        self.drugcomb = drugcomb
-        self.mol_mapping = mol_mapping
-        self.cell_lines = cell_lines
-        self.targets = torch.from_numpy(drugcomb['target'].values)
-        self.transform = transform
+    def __init__(self, data, cell_data, drug_map):
+        """
+        Initializes the dataset with combination data, cell line embeddings, and drug embeddings.
+
+        Parameters:
+        -----------
+        data : pd.DataFrame
+            Data containing the combination information for drugs and targets.
+
+        cell_data : pd.DataFrame
+            Embedding data for cell lines.
+
+        drug_map : dict
+            Dictionary mapping each drug to its embedding.
+        """
+        self.data = data
+        self.cell_data = cell_data
+        self.drug_map = drug_map
+        self.labels = torch.tensor(data['target'].values, dtype=torch.float32)
 
     def __len__(self):
-        return len(self.drugcomb)
+        """
+        Returns the number of records in the dataset.
+        """
+        return len(self.data)
 
     def __getitem__(self, idx):
-        sample = self.drugcomb.iloc[idx]
+        """
+        Retrieves a single record by index.
 
-        drug1 = sample["Drug_ID"]
-        drug1_tokens = self.mol_mapping[drug1]
+        Parameters:
+        -----------
+        idx : int
+            Index of the record.
 
-        if self.transform:
-            drug1_tokens = self.transform(drug1_tokens)
+        Returns:
+        --------
+        tuple: (torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor)
+            - Embeddings for drug A
+            - Embeddings for drug B
+            - Cell line embeddings
+            - Target value (synergy score)
+        """
+        record = self.data.iloc[idx]
 
-        cell_line_name = sample[CELL_LINE_COLUMN_NAME]
-        cell_line_embeddings = self.cell_lines.loc[cell_line_name].values.flatten()
-        cell_line_embeddings = torch.tensor(cell_line_embeddings)
+        # Get drug embeddings
+        drug_a_emb = self.drug_map[record[DRUG_A]]
+        drug_b_emb = self.drug_map[record[DRUG_B]]
 
-        target = self.targets[idx].unsqueeze(-1).float()
+        # Get cell line embeddings
+        cell_emb = torch.tensor(self.cell_data.loc[record[CELL_LINE]].values, dtype=torch.float32)
 
-        return (drug1_tokens, cell_line_embeddings, target)
+        # Get target value
+        target = self.labels[idx].unsqueeze(0)
+
+        return drug_a_emb, drug_b_emb, cell_emb, target
