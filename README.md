@@ -1,4 +1,4 @@
-DeepPTCL [![DOI](https://zenodo.org/badge/870923296.svg)](https://doi.org/10.5281/zenodo.13917337)
+DeepPTCL [![DOI](https://zenodo.org/badge/870923296.svg)](https://doi.org/10.5281/zenodo.14845644)
 ==============
 
 To simulate a case of new patient tumor, we additionally tested our model in the most challenging  leave cell out to validate cell line specific performance when the cell line was not part of the training set. \
